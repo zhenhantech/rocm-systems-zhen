@@ -25,6 +25,18 @@ ExecutionCtx::ExecutionCtx(int deviceId, DevResourceDesc* desc, uint32_t flags)
       ctxId_(nextCtxId_.fetch_add(1)) {}
 
 hipError_t ExecutionCtx::Create() {
+  for (const auto& res : resourceDesc_->resources) {
+    if (res.type == hipDevResourceTypeSm &&
+        (res.sm.flags & hipDevSmResourceGroupLocalityDomainId)) {
+      // The CU mask written for a green context does not stop SPX from
+      // dispatching workgroups onto every XCC. Refuse the context instead of
+      // reporting a domain the hardware will not honor.
+      LogPrintfError(
+          "[ExecCtx] locality-domain execution is not supported until a queue can "
+          "dispatch on a subset of XCCs");
+      return hipErrorNotSupported;
+    }
+  }
   uint32_t totalCUs = getTotalCuCount(deviceId_);
   if (totalCUs == 0) return hipErrorInvalidConfiguration;
   uint32_t alignment = getSmAlignment(deviceId_);
@@ -387,6 +399,57 @@ hipError_t ExecutionCtx::devSmResourceSplit(
   if (input == nullptr || groupParams == nullptr) return hipErrorInvalidValue;
   if (input->type != hipDevResourceTypeSm) return hipErrorInvalidResourceType;
   if (flags != 0) return hipErrorInvalidValue;
+
+  bool any_locality = false;
+  bool all_locality = nbGroups > 0;
+  for (uint32_t i = 0; i < nbGroups; i++) {
+    const bool locality = (groupParams[i].flags & hipDevSmResourceGroupLocalityDomainId) != 0;
+    any_locality = any_locality || locality;
+    all_locality = all_locality && locality;
+  }
+  if (any_locality && !all_locality) return hipErrorInvalidValue;
+  if (any_locality) {
+    const int device = readDeviceId(input);
+    if (device < 0) return hipErrorInvalidDevice;
+    const int domains = ihipLocalityDomainCount(device);
+    const uint32_t device_cus =
+        static_cast<uint32_t>(g_devices[device]->devices()[0]->info().maxComputeUnits_);
+    if (domains <= 0 || device_cus == 0) return hipErrorInvalidConfiguration;
+    const uint32_t per_domain = device_cus / static_cast<uint32_t>(domains);
+    std::vector<uint32_t> used(static_cast<size_t>(domains), 0);
+    uint32_t alignment = input->sm.smCoscheduledAlignment;
+    if (alignment == 0) alignment = getSmAlignment(device);
+    for (uint32_t i = 0; i < nbGroups; i++) {
+      const int domain = static_cast<int>(groupParams[i].localityDomainId);
+      if (domain < 0 || domain >= domains) return hipErrorInvalidValue;
+      if (groupParams[i].coscheduledSmCount == 0) groupParams[i].coscheduledSmCount = alignment;
+      const uint32_t budget = per_domain - used[domain];
+      if (groupParams[i].smCount == 0) groupParams[i].smCount = budget;
+      if (groupParams[i].smCount == 0 || groupParams[i].smCount > budget) {
+        return hipErrorInvalidResourceConfiguration;
+      }
+      used[domain] += groupParams[i].smCount;
+    }
+    if (result != nullptr) {
+      std::vector<uint32_t> placed(static_cast<size_t>(domains), 0);
+      const uint32_t familyId = nextFamilyId_.fetch_add(1);
+      for (uint32_t i = 0; i < nbGroups; i++) {
+        const uint32_t domain = groupParams[i].localityDomainId;
+        const uint32_t start = per_domain * domain + placed[domain];
+        fillSmResult(&result[i], groupParams[i].smCount, groupParams[i].coscheduledSmCount,
+                     groupParams[i].flags);
+        result[i].sm.localityDomainId = domain;
+        const uint32_t resId = nextResourceId_.fetch_add(1);
+        tagResource(&result[i], resId, device);
+        registerResourceMeta(device, resId, familyId, start);
+        placed[domain] += groupParams[i].smCount;
+      }
+    }
+    uint32_t leftover = 0;
+    for (uint32_t used_cus : used) leftover += per_domain - used_cus;
+    fillRemainder(remainder, leftover, alignment);
+    return hipSuccess;
+  }
 
   uint32_t totalCUs = input->sm.smCount;
   uint32_t defaultAlignment = input->sm.smCoscheduledAlignment;

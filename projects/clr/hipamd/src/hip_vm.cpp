@@ -96,20 +96,33 @@ hipError_t hipMemCreate(hipMemGenericAllocationHandle_t* handle, size_t size,
   HIP_INIT_API(hipMemCreate, handle, size, prop, flags);
 
   //  Currently we do not support Pinned memory
+  const bool localized = prop != nullptr &&
+      prop->location.type == hipMemLocationTypeDeviceLocalityDomain;
   if (handle == nullptr || size == 0 || flags != 0 || prop == nullptr ||
       (prop->type != hipMemAllocationTypePinned && prop->type != hipMemAllocationTypeUncached) ||
       (prop->location.type != hipMemLocationTypeDevice &&
           prop->location.type != hipMemLocationTypeHost &&
           prop->location.type != hipMemLocationTypeHostNuma &&
-          prop->location.type != hipMemLocationTypeHostNumaCurrent)) {
+          prop->location.type != hipMemLocationTypeHostNumaCurrent &&
+          !localized)) {
     HIP_RETURN(hipErrorInvalidValue);
+  }
+  if (localized && prop->type == hipMemAllocationTypeManaged) {
+    HIP_RETURN(hipErrorNotSupported);
   }
 
   // location.id is interpreted per location type: a device index for Device, a
   // NUMA node id for HostNuma, and ignored for Host / HostNumaCurrent.
-  if (prop->location.type == hipMemLocationTypeDevice) {
-    if (prop->location.id < 0 || prop->location.id >= g_devices.size()) {
+  if (prop->location.type == hipMemLocationTypeDevice || localized) {
+    if (prop->location.id < 0 || prop->location.id >= static_cast<int>(g_devices.size())) {
       HIP_RETURN(hipErrorInvalidDevice);
+    }
+  }
+  if (localized) {
+    const int domains = ihipLocalityDomainCount(prop->location.localized.deviceId);
+    const int domain = prop->location.localized.localityDomainId;
+    if (domain < 0 || domain >= domains) {
+      HIP_RETURN(hipErrorInvalidValue);
     }
   } else if (prop->location.type == hipMemLocationTypeHostNuma) {
     uint32_t numNumaNodes = hip::getCurrentDevice()->devices()[0]->numHostNumaNodes();
@@ -150,6 +163,9 @@ hipError_t hipMemCreate(hipMemGenericAllocationHandle_t* handle, size_t size,
                  ROCCLR_MEM_HOST_NUMA_NODE_MASK;
   }
   hip::Device* dev = hip::getCurrentDevice();
+  if (localized) {
+    dev = g_devices[prop->location.localized.deviceId];
+  }
   amd::Context* curDevContext = dev->asContext();
   amd::Context* amdContext = isHostMemBacked ? hip::host_context : curDevContext;
 
@@ -166,8 +182,13 @@ hipError_t hipMemCreate(hipMemGenericAllocationHandle_t* handle, size_t size,
     HIP_RETURN(hipErrorInvalidValue);
   }
 
-  void* ptr = amd::SvmBuffer::malloc(*amdContext, ihipFlags, size, dev_info.memBaseAddrAlign_,
-                                     isHostMemBacked ? curDevContext->svmDevices()[0] : nullptr);
+  void* ptr = nullptr;
+  {
+    const int domain = localized ? prop->location.localized.localityDomainId : -1;
+    hip::LocalityAllocScope region(domain);
+    ptr = amd::SvmBuffer::malloc(*amdContext, ihipFlags, size, dev_info.memBaseAddrAlign_,
+                                 isHostMemBacked ? curDevContext->svmDevices()[0] : nullptr);
+  }
 
   // Handle out of memory cases,
   if (ptr == nullptr) {
@@ -189,9 +210,12 @@ hipError_t hipMemCreate(hipMemGenericAllocationHandle_t* handle, size_t size,
   // allocations location.id is a NUMA node id (not a device index), so record the
   // current device for the device-indexed bookkeeping and keep the node separately.
   phys_mem_obj->getUserData().deviceId =
-      (prop->location.type == hipMemLocationTypeDevice) ? prop->location.id : dev->deviceId();
+      (prop->location.type == hipMemLocationTypeDevice || localized) ? prop->location.id
+                                                                    : dev->deviceId();
   phys_mem_obj->getUserData().locationType = prop->location.type;
   phys_mem_obj->getUserData().numaNode = numaNode;
+  phys_mem_obj->getUserData().localityDomain =
+      localized ? prop->location.localized.localityDomainId : -1;
   phys_mem_obj->getUserData().data = new hip::GenericAllocation(*phys_mem_obj, size, *prop);
   *handle = reinterpret_cast<hipMemGenericAllocationHandle_t>(phys_mem_obj->getUserData().data);
 

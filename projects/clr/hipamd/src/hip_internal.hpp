@@ -58,12 +58,39 @@ typedef struct hipArray {
     unsigned int flags;                //!< Creation flags (e.g. hipArraySurfaceLoadStore)
 } hipArray;
 
+// region_id < 0 clears the calling thread's VRAM locality. Returns 0 on success.
+extern "C" int hsa_amd_memory_set_locality_domain(int region_id);
+
 namespace hip{
 extern std::once_flag g_ihipInitialized;
 
   struct ResourceMeta {
     uint32_t familyId;
     uint32_t startCU;
+  };
+
+  // How many locality domains the device currently exposes. NPS1 and an
+  // unreadable partition file report 1, which is the whole device.
+  int ihipLocalityDomainCount(int device);
+
+  // Puts VRAM allocated on this thread into region_id until the scope ends.
+  class LocalityAllocScope {
+   public:
+    explicit LocalityAllocScope(int domain) : active_(domain >= 0) {
+      if (active_) {
+        hsa_amd_memory_set_locality_domain(domain);
+      }
+    }
+    ~LocalityAllocScope() {
+      if (active_) {
+        hsa_amd_memory_set_locality_domain(-1);
+      }
+    }
+    LocalityAllocScope(const LocalityAllocScope&) = delete;
+    LocalityAllocScope& operator=(const LocalityAllocScope&) = delete;
+
+   private:
+    bool active_;
   };
 enum MemcpyType {
   hipHostToHost,      //!< Memcpy from host to host

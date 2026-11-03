@@ -4188,6 +4188,7 @@ hipError_t hipPointerGetAttributes(hipPointerAttribute_t* attributes, const void
   int device = 0;
   device::Memory* devMem = nullptr;
   memset(attributes, 0, sizeof(hipPointerAttribute_t));
+  attributes->localityDomainOrdinal = -1;
 
   if (memObj != nullptr) {
     attributes->type = getMemoryType(memObj);
@@ -4216,6 +4217,7 @@ hipError_t hipPointerGetAttributes(hipPointerAttribute_t* attributes, const void
     attributes->isManaged = IsManagedMemory(memObj->getMemFlags());
     attributes->allocationFlags = memObj->getUserData().flags;
     attributes->device = memObj->getUserData().deviceId;
+    attributes->localityDomainOrdinal = memObj->getUserData().localityDomain;
     if (attributes->isManaged) {
       attributes->type = hipMemoryTypeManaged;
     }

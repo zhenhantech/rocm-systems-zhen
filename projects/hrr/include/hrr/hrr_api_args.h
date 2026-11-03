@@ -2502,11 +2502,11 @@ typedef struct {
     uint64_t size;
     uint64_t prop;
     uint64_t flags;
-    uint8_t prop_bytes[32];  /* hipMemAllocationProp inline copy */
+    uint8_t prop_bytes[48];  /* hipMemAllocationProp inline copy */
     uint8_t prop_present;  /* 1 when prop was non-null */
 } hrr_args_hipMemCreate;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemAllocationProp) <= 32, "hrr_args_hipMemCreate::prop_bytes too small for hipMemAllocationProp");
+static_assert(sizeof(hipMemAllocationProp) <= 48, "hrr_args_hipMemCreate::prop_bytes too small for hipMemAllocationProp");
 #endif
 
 /* hipError_t hipMemExportToShareableHandle(void* shareableHandle, hipMemGenericAllocationHandle_t handle, hipMemAllocationHandleType handleType, unsigned long long flags) */
@@ -2526,13 +2526,13 @@ typedef struct {
     uint64_t flags;
     uint64_t location;
     uint64_t ptr;
-    uint8_t location_bytes[8];  /* hipMemLocation inline copy */
+    uint8_t location_bytes[16];  /* hipMemLocation inline copy */
     uint8_t location_present;  /* 1 when location was non-null */
     uint8_t flags_bytes[8];  /* unsigned long long inline copy */
     uint8_t flags_present;  /* 1 when flags was non-null */
 } hrr_args_hipMemGetAccess;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemLocation) <= 8, "hrr_args_hipMemGetAccess::location_bytes too small for hipMemLocation");
+static_assert(sizeof(hipMemLocation) <= 16, "hrr_args_hipMemGetAccess::location_bytes too small for hipMemLocation");
 static_assert(sizeof(unsigned long long) <= 8, "hrr_args_hipMemGetAccess::flags_bytes too small for unsigned long long");
 #endif
 
@@ -2552,10 +2552,10 @@ typedef struct {
     uint64_t granularity;
     uint64_t prop;
     uint64_t /* hipMemAllocationGranularity_flags */ option;
-    uint8_t alloc_prop_bytes[32];  /* hipMemAllocationProp inline copy */
+    uint8_t alloc_prop_bytes[48];  /* hipMemAllocationProp inline copy */
 } hrr_args_hipMemGetAllocationGranularity;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemAllocationProp) <= 32, "hrr_args_hipMemGetAllocationGranularity::alloc_prop_bytes[32] too small for hipMemAllocationProp");
+static_assert(sizeof(hipMemAllocationProp) <= 48, "hrr_args_hipMemGetAllocationGranularity::alloc_prop_bytes[48] too small for hipMemAllocationProp");
 #endif
 
 /* hipError_t hipMemGetAllocationPropertiesFromHandle(hipMemAllocationProp* prop, hipMemGenericAllocationHandle_t handle) */
@@ -2609,10 +2609,10 @@ typedef struct {
     int32_t ret;
     uint64_t mem_pool;
     uint64_t pool_props;
-    uint8_t pool_props_bytes[88];  /* hipMemPoolProps inline copy */
+    uint8_t pool_props_bytes[112];  /* hipMemPoolProps inline copy */
 } hrr_args_hipMemPoolCreate;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemPoolProps) <= 88, "hrr_args_hipMemPoolCreate::pool_props_bytes[88] too small for hipMemPoolProps");
+static_assert(sizeof(hipMemPoolProps) <= 112, "hrr_args_hipMemPoolCreate::pool_props_bytes[112] too small for hipMemPoolProps");
 #endif
 
 /* hipError_t hipMemPoolDestroy(hipMemPool_t mem_pool) */
@@ -5340,12 +5340,12 @@ typedef struct {
     int32_t ret;
     uint64_t dev_ptr;
     uint64_t count;
-    uint8_t location_bytes[8];  /* hipMemLocation passed by value, inline copy */
+    uint8_t location_bytes[16];  /* hipMemLocation passed by value, inline copy */
     uint32_t flags;
     uint64_t stream;
 } hrr_args_hipMemPrefetchAsync_v2;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemLocation) <= 8, "hrr_args_hipMemPrefetchAsync_v2::location_bytes too small for hipMemLocation");
+static_assert(sizeof(hipMemLocation) <= 16, "hrr_args_hipMemPrefetchAsync_v2::location_bytes too small for hipMemLocation");
 #endif
 
 /* hipError_t hipMemAdvise_v2(const void* dev_ptr, size_t count, hipMemoryAdvise advice, hipMemLocation device) */
@@ -5355,10 +5355,10 @@ typedef struct {
     uint64_t dev_ptr;
     uint64_t count;
     int32_t advice;
-    uint8_t device_bytes[8];  /* hipMemLocation passed by value, inline copy */
+    uint8_t device_bytes[16];  /* hipMemLocation passed by value, inline copy */
 } hrr_args_hipMemAdvise_v2;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemLocation) <= 8, "hrr_args_hipMemAdvise_v2::device_bytes too small for hipMemLocation");
+static_assert(sizeof(hipMemLocation) <= 16, "hrr_args_hipMemAdvise_v2::device_bytes too small for hipMemLocation");
 #endif
 
 /* hipError_t hipStreamGetId(hipStream_t stream, unsigned long long* streamId) */
@@ -5518,11 +5518,11 @@ typedef struct {
     uint64_t location;
     int32_t type;
     uint64_t pool;
-    uint8_t location_bytes[8];  /* hipMemLocation inline copy */
+    uint8_t location_bytes[16];  /* hipMemLocation inline copy */
     uint8_t location_present;  /* 1 when location was non-null */
 } hrr_args_hipMemSetMemPool;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemLocation) <= 8, "hrr_args_hipMemSetMemPool::location_bytes too small for hipMemLocation");
+static_assert(sizeof(hipMemLocation) <= 16, "hrr_args_hipMemSetMemPool::location_bytes too small for hipMemLocation");
 #endif
 
 /* hipError_t hipMemGetMemPool(hipMemPool_t* pool, hipMemLocation* location, hipMemAllocationType type) */
@@ -5532,11 +5532,11 @@ typedef struct {
     uint64_t pool;
     uint64_t location;
     int32_t type;
-    uint8_t location_bytes[8];  /* hipMemLocation inline copy */
+    uint8_t location_bytes[16];  /* hipMemLocation inline copy */
     uint8_t location_present;  /* 1 when location was non-null */
 } hrr_args_hipMemGetMemPool;
 #ifdef HIP_INCLUDE_HIP_HIP_RUNTIME_H
-static_assert(sizeof(hipMemLocation) <= 8, "hrr_args_hipMemGetMemPool::location_bytes too small for hipMemLocation");
+static_assert(sizeof(hipMemLocation) <= 16, "hrr_args_hipMemGetMemPool::location_bytes too small for hipMemLocation");
 #endif
 
 /* hipError_t hipMipmappedArrayGetMemoryRequirements(hipArrayMemoryRequirements* memoryRequirements, hipMipmappedArray_t mipmap, hipDevice_t device) */

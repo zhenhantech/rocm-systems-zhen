@@ -9,7 +9,31 @@
 #include "hip_internal.hpp"
 #include "hip_platform.hpp"
 
+#include <cstdio>
+#include <fstream>
+#include <string>
+
 namespace hip {
+
+int ihipLocalityDomainCount(int device) {
+  if (device < 0 || static_cast<size_t>(device) >= g_devices.size()) {
+    return 1;
+  }
+  const auto& info = g_devices[device]->devices()[0]->info();
+  char bdf[32];
+  snprintf(bdf, sizeof(bdf), "%04x:%02x:%02x.%x", info.pciDomainID,
+           info.deviceTopology_.pcie.bus, info.deviceTopology_.pcie.device,
+           info.deviceTopology_.pcie.function);
+  std::ifstream in(std::string("/sys/bus/pci/devices/") + bdf + "/current_memory_partition");
+  std::string mode;
+  if (!(in >> mode)) {
+    return 1;
+  }
+  if (mode == "NPS2") return 2;
+  if (mode == "NPS4") return 4;
+  if (mode == "NPS8") return 8;
+  return 1;
+}
 
 hipError_t hipGetDevicePropertiesR0000(hipDeviceProp_tR0000* prop, int device);
 
@@ -468,6 +492,15 @@ hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int device)
     case hipDeviceAttributeMaxDynDataPrefetchRegions:
       *pi = static_cast<int>(g_devices[device]->devices()[0]->info().maxDynDataPrefetchRegions_);
       break;
+    case hipDeviceAttributeLocalityDomainCount:
+      *pi = ihipLocalityDomainCount(device);
+      break;
+    case hipDeviceAttributeLocalityDomainMultiprocessorCount: {
+      int domains = ihipLocalityDomainCount(device);
+      int cus = static_cast<int>(g_devices[device]->devices()[0]->info().maxComputeUnits_);
+      *pi = domains > 0 ? cus / domains : cus;
+      break;
+    }
     default:
       HIP_RETURN(hipErrorInvalidValue);
   }

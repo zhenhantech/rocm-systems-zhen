@@ -299,10 +299,24 @@ hipError_t hipMemPoolCreate(hipMemPool_t* mem_pool, const hipMemPoolProps* pool_
       pool_props->allocType != hipMemAllocationTypeManaged) {
     HIP_RETURN(hipErrorInvalidValue);
   }
-  // Make sure the pool creation occurs on a valid device
-  if ((pool_props->location.type != hipMemLocationTypeDevice) ||
-      (pool_props->location.id >= g_devices.size())) {
+  const bool localized =
+      pool_props->location.type == hipMemLocationTypeDeviceLocalityDomain;
+  // Make sure the pool creation occurs on a valid device. For a locality
+  // domain, location.id is localized.deviceId.
+  if ((pool_props->location.type != hipMemLocationTypeDevice && !localized) ||
+      pool_props->location.id < 0 ||
+      static_cast<size_t>(pool_props->location.id) >= g_devices.size()) {
     HIP_RETURN(hipErrorInvalidValue);
+  }
+  if (localized) {
+    if (pool_props->allocType == hipMemAllocationTypeManaged) {
+      HIP_RETURN(hipErrorNotSupported);
+    }
+    const int domains = ihipLocalityDomainCount(pool_props->location.id);
+    const int domain = pool_props->location.localized.localityDomainId;
+    if (domain < 0 || domain >= domains) {
+      HIP_RETURN(hipErrorInvalidValue);
+    }
   }
 
   if (IS_WINDOWS && pool_props->handleTypes == hipMemHandleTypePosixFileDescriptor) {

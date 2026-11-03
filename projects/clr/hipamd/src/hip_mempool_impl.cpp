@@ -195,10 +195,17 @@ void* MemoryPool::AllocateMemory(size_t size, Stream* stream, void* dptr) {
     }
     cl_svm_mem_flags flags = (state_.interprocess_) ? ROCCLR_MEM_INTERPROCESS : 0;
     flags |= (state_.phys_mem_) ? ROCCLR_MEM_PHYMEM : 0;
-    if (state_.use_vm_heap_) {
-      dev_ptr = Alloc(size);
-    } else {
-      dev_ptr = amd::SvmBuffer::malloc(*context, flags, size, dev_info.memBaseAddrAlign_, nullptr);
+    const int locality =
+        Properties().location.type == hipMemLocationTypeDeviceLocalityDomain
+            ? Properties().location.localized.localityDomainId
+            : -1;
+    {
+      LocalityAllocScope region(locality);
+      if (state_.use_vm_heap_) {
+        dev_ptr = Alloc(size);
+      } else {
+        dev_ptr = amd::SvmBuffer::malloc(*context, flags, size, dev_info.memBaseAddrAlign_, nullptr);
+      }
     }
     if (dev_ptr == nullptr) {
       size_t free = 0, total = 0;
@@ -216,6 +223,7 @@ void* MemoryPool::AllocateMemory(size_t size, Stream* stream, void* dptr) {
     memory = getMemoryObject(device_, dev_ptr, offset);
     // Saves the current device id so that it can be accessed later
     memory->getUserData().deviceId = device_->deviceId();
+    memory->getUserData().localityDomain = locality;
 
     // Update access for the new allocation from other devices
     for (const auto& it : access_map_) {
@@ -451,6 +459,12 @@ hipError_t MemoryPool::GetAttribute(hipMemPoolAttr attr, void* value) {
     case hipMemPoolAttrUsedMemHigh:
       // High watermark of all used memoryS, since the last reset
       *reinterpret_cast<uint64_t*>(value) = busy_heap_.GetMaxTotalSize();
+      break;
+    case hipMemPoolAttrLocalityDomainId:
+      *reinterpret_cast<int*>(value) =
+          properties_.location.type == hipMemLocationTypeDeviceLocalityDomain
+              ? properties_.location.localized.localityDomainId
+              : -1;
       break;
     default:
       return hipErrorInvalidValue;

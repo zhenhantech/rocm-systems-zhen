@@ -444,6 +444,7 @@ typedef struct hipPointerAttribute_t {
   int isManaged;
   unsigned allocationFlags; /* flags specified when memory was allocated*/
                             /* peers? */
+  int localityDomainOrdinal;  ///< Domain id of a localized allocation, or -1
 } hipPointerAttribute_t;
 
 /**
@@ -649,6 +650,10 @@ typedef enum hipDeviceAttribute_t {
                                                  ///< '0' otherwise.
   hipDeviceAttributeMaxDynDataPrefetchRegions,   ///< Maximum number of dynamic data prefetch regions
                                                  ///< per kernel launch (0 if unsupported).
+  hipDeviceAttributeLocalityDomainCount,  ///< Number of locality domains on this device.
+                                          ///< One domain contains both compute and device memory.
+                                          ///< A device with no memory partition reports 1.
+  hipDeviceAttributeLocalityDomainMultiprocessorCount,  ///< Compute units in each locality domain.
 
   hipDeviceAttributeAmdSpecificEnd = 19999,
   hipDeviceAttributeVendorSpecificBegin = 20000,
@@ -768,6 +773,7 @@ typedef enum hipDevResourceType {
 typedef enum hipDevSmResourceGroup_flags {
   hipDevSmResourceGroupDefault = 0,
   hipDevSmResourceGroupBackfill = 0x1,
+  hipDevSmResourceGroupLocalityDomainId = 0x2,  ///< Honor params.localityDomainId
 } hipDevSmResourceGroup_flags;
 typedef enum hipDevSmResourceSplitByCount_flags {
   hipDevSmResourceSplitIgnoreSmCoscheduling = 0x1,
@@ -785,6 +791,7 @@ typedef struct hipDevSmResource {
   unsigned int minSmPartitionSize;
   unsigned int smCoscheduledAlignment;
   unsigned int flags;
+  unsigned int localityDomainId;  ///< Valid when flags contains hipDevSmResourceGroupLocalityDomainId
 } hipDevSmResource;
 
 typedef struct hipDevWorkqueueConfigResource {
@@ -810,11 +817,12 @@ typedef struct hipDevResource_st {
 } hipDevResource;
 
 typedef struct hipDevSmResourceGroupParams_st {
-  unsigned int smCount;
+  unsigned int smCount;  ///< 0 discovers the domain size and writes it back
   unsigned int coscheduledSmCount;
   unsigned int preferredCoscheduledSmCount;
   unsigned int flags;
-  unsigned int reserved[12];
+  unsigned int localityDomainId;  ///< Used when flags contains hipDevSmResourceGroupLocalityDomainId
+  unsigned int reserved[11];
 } hipDevSmResourceGroupParams;
 
 // Note many APIs also use integer deviceIds as an alternative to the device pointer:
@@ -1340,7 +1348,13 @@ typedef enum hipMemPoolAttr {
    * High watermark of the amount of memory from the pool that was in use by the application since
    * the last time it was reset. High watermark can only be reset to zero.
    */
-  hipMemPoolAttrUsedMemHigh = 0x8
+  hipMemPoolAttrUsedMemHigh = 0x8,
+  /**
+   * (value type = int)
+   * Locality domain of a pool created with hipMemLocationTypeDeviceLocalityDomain.
+   * A pool that is not localized returns -1. This attribute is read-only.
+   */
+  hipMemPoolAttrLocalityDomainId = 0x9
 } hipMemPoolAttr;
 
 /**

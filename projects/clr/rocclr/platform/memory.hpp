@@ -166,6 +166,7 @@ class Memory : public amd::RuntimeObject {
         0;  //!< The type of the location (i.e. device or host) memory is allocated on
     //!< NUMA node for host-NUMA VMM allocations; -1 means default/current node or N/A
     int numaNode = -1;
+    int localityDomain = -1;  //!< Locality domain of this allocation, or -1 if not localized
     void* data = nullptr;                  //!< Opaque user data from CL or HIP or etc.
     amd::Memory* phys_mem_obj = nullptr;   //<! Physical mem obj, only set on virtual mem
     amd::Memory* vaddr_mem_obj = nullptr;  //<! Virtual address mem obj, only set on virtual mem

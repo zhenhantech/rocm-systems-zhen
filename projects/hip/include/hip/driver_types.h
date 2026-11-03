@@ -440,16 +440,28 @@ typedef enum hipMemLocationType {
   hipMemLocationTypeHost = 2,      ///< Host location, id is ignored
   hipMemLocationTypeHostNuma = 3,  ///< Host NUMA node location, id is host NUMA node id
   hipMemLocationTypeHostNumaCurrent =
-      4  ///< Host NUMA node closest to current thread’s CPU, id is ignored
+      4,  ///< Host NUMA node closest to current thread’s CPU, id is ignored
+  hipMemLocationTypeDeviceLocalityDomain =
+      5  ///< One locality domain of a device. Set both localized.deviceId and
+         ///< localized.localityDomainId. A domain id is meaningful only with its device.
 } hipMemLocationType;
 /**
  * Specifies a memory location.
  *
- * To specify a gpu, set type = @p hipMemLocationTypeDevice and set id = the gpu's device ID
+ * To specify a gpu, set type = @p hipMemLocationTypeDevice and set id = the gpu's device ID.
+ * To specify a locality domain, set type = @p hipMemLocationTypeDeviceLocalityDomain and set
+ * localized.deviceId plus localized.localityDomainId. id and localized.deviceId occupy the
+ * same storage.
  */
 typedef struct hipMemLocation {
   hipMemLocationType type;  ///< Specifies the location type, which describes the meaning of id
-  int id;                   ///< Identifier for the provided location type @p hipMemLocationType
+  union {
+    int id;  ///< Identifier for @p hipMemLocationTypeDevice or @p hipMemLocationTypeHostNuma
+    struct {
+      int deviceId;          ///< HIP device id
+      int localityDomainId;  ///< Domain on that device, from hipDeviceAttributeLocalityDomainCount
+    } localized;
+  };
 } hipMemLocation;
 
 /**
@@ -558,7 +570,8 @@ typedef struct hipExtMemcpyAttributes {
   hipMemLocation          srcLocHint;      ///< Location hint for src operand.
   hipMemLocation          dstLocHint;      ///< Location hint for destination operand.
   unsigned int            flags;           ///< Op selection and hints; see hipMemcpyFlags.
-  uint32_t                reserved[8];     ///< Reserved; must be 0 (future use).
+  uint32_t                reserved[6];     ///< Reserved; must be 0. Shrunk so the struct stays
+                                           ///< 56 bytes after hipMemLocation gained a domain id.
 } hipExtMemcpyAttributes;                  // 56 bytes; zero-initialize.
 /**
  * Operand types for individual copies within a batch
