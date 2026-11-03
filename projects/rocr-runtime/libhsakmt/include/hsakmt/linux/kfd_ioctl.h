@@ -1040,9 +1040,6 @@ struct kfd_ioctl_acquire_vm_args {
 #define KFD_IOC_ALLOC_MEM_FLAGS_UNCACHED	(1 << 25)
 #define KFD_IOC_ALLOC_MEM_FLAGS_EXT_COHERENT	(1 << 24)
 #define KFD_IOC_ALLOC_MEM_FLAGS_CONTIGUOUS_BEST_EFFORT	(1 << 23)
-/* Place this VRAM allocation in region_id. The ioctl payload grows by
- * region_id and pad; the stock 40-byte command stays AMDKFD_IOC_ALLOC_MEMORY_OF_GPU. */
-#define KFD_IOC_ALLOC_MEM_FLAGS_REGION		(1 << 22)
 
 /* Allocate memory for later SVM (shared virtual memory) mapping.
  *
@@ -1065,18 +1062,14 @@ struct kfd_ioctl_alloc_memory_of_gpu_args {
 	__u32 flags;
 };
 
-/* Same as kfd_ioctl_alloc_memory_of_gpu_args plus the POC region selector.
- * Sent with nr 0x16 and this struct's size. region_id is read only when
- * KFD_IOC_ALLOC_MEM_FLAGS_REGION is set. -1 is not used here; callers omit
- * the flag instead. */
-struct kfd_ioctl_alloc_memory_of_gpu_region_args {
+struct kfd_ioctl_alloc_memory_of_gpu_mem_id_args {
 	__u64 va_addr;
 	__u64 size;
 	__u64 handle;
 	__u64 mmap_offset;
 	__u32 gpu_id;
 	__u32 flags;
-	__s32 region_id;
+	__s32 mem_id;
 	__u32 pad;
 };
 
@@ -1869,7 +1862,10 @@ struct kfd_ioctl_create_process_args {
 #define AMDKFD_IOC_AIS_OP                       \
 		AMDKFD_IOWR(0x87, struct kfd_ioctl_ais_args)
 
+#define AMDKFD_IOC_ALLOC_MEMORY_OF_GPU_MEM_ID	\
+		AMDKFD_IOWR(0x88, struct kfd_ioctl_alloc_memory_of_gpu_mem_id_args)
+
 #define AMDKFD_COMMAND_START_2		0x80
-#define AMDKFD_COMMAND_END_2		0x88
+#define AMDKFD_COMMAND_END_2		0x89
 
 #endif
