@@ -153,6 +153,8 @@ class ThunkLoader {
                                       HSAuint64 Alignment, \
                                       HsaMemFlags emFlags, \
                                       void** MemoryAddress);
+    typedef HSAKMT_STATUS (HSAKMT_DEF(hsaKmtSetAllocRegion))(int32_t region_id);
+    typedef int32_t (HSAKMT_DEF(hsaKmtGetAllocRegion))(void);
     typedef HSAKMT_STATUS (HSAKMT_DEF(hsaKmtFreeMemory))(void* MemoryAddress, \
                                       HSAuint64 SizeInBytes);
     typedef HSAKMT_STATUS (HSAKMT_DEF(hsaKmtAvailableMemory))(HSAuint32 Node, \
@@ -488,6 +490,8 @@ class ThunkLoader {
     HSAKMT_DEF(hsaKmtSetMemoryPolicy)* HSAKMT_PFN(hsaKmtSetMemoryPolicy);
     HSAKMT_DEF(hsaKmtAllocMemory)* HSAKMT_PFN(hsaKmtAllocMemory);
     HSAKMT_DEF(hsaKmtAllocMemoryAlign)* HSAKMT_PFN(hsaKmtAllocMemoryAlign);
+    HSAKMT_DEF(hsaKmtSetAllocRegion)* HSAKMT_PFN(hsaKmtSetAllocRegion);
+    HSAKMT_DEF(hsaKmtGetAllocRegion)* HSAKMT_PFN(hsaKmtGetAllocRegion);
     HSAKMT_DEF(hsaKmtFreeMemory)* HSAKMT_PFN(hsaKmtFreeMemory);
     HSAKMT_DEF(hsaKmtAvailableMemory)* HSAKMT_PFN(hsaKmtAvailableMemory);
     HSAKMT_DEF(hsaKmtRegisterMemory)* HSAKMT_PFN(hsaKmtRegisterMemory);

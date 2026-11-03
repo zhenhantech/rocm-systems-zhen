@@ -27,6 +27,8 @@ hsaKmtSetQueueCUMask;
 hsaKmtSetMemoryPolicy;
 hsaKmtAllocMemory;
 hsaKmtAllocMemoryAlign;
+hsaKmtSetAllocRegion;
+hsaKmtGetAllocRegion;
 hsaKmtFreeMemory;
 hsaKmtAvailableMemory;
 hsaKmtRegisterMemory;

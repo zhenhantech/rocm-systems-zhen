@@ -348,6 +348,11 @@ hsa_status_t KfdDriver::AllocateMemory(const core::MemoryRegion& mem_region,
     bool useSubAlloc = subAllocEnabled;
     useSubAlloc &=
         ((alloc_flags & (~core::MemoryRegion::AllocateRestrict)) == 0);
+    // A locality-domain allocation must be its own BO. A fragment from an
+    // earlier block was placed without this region.
+    if (HSAKMT_CALL(hsaKmtGetAllocRegion)() >= 0) {
+      useSubAlloc = false;
+    }
 
     if (useSubAlloc) {
       mem = m_region.fragment_alloc(size);
@@ -1160,3 +1165,16 @@ hsa_status_t KfdDriver::SetPersistingCacheSize(uint32_t node_id, uint64_t cache_
 
 } // namespace AMD
 } // namespace rocr
+
+extern "C" __attribute__((visibility("default"))) int hsa_amd_memory_set_locality_domain(
+    int region_id) {
+  if (rocr::core::Runtime::runtime_singleton_ == nullptr ||
+      rocr::core::Runtime::runtime_singleton_->thunkLoader() == nullptr ||
+      rocr::core::Runtime::runtime_singleton_->thunkLoader()->pfn_hsaKmtSetAllocRegion == nullptr) {
+    return -1;
+  }
+  return rocr::core::Runtime::runtime_singleton_->thunkLoader()->pfn_hsaKmtSetAllocRegion(
+             region_id) == HSAKMT_STATUS_SUCCESS
+             ? 0
+             : -1;
+}

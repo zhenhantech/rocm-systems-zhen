@@ -772,6 +772,19 @@ HSAKMT_STATUS HSAKMTAPI hsaKmtSetMemoryPolicy(HSAuint32 Node,
 					  MemoryAddressAlternate, MemorySizeInBytes);
 }
 
+static __thread int32_t alloc_region_id = -1;
+
+HSAKMT_STATUS HSAKMTAPI hsaKmtSetAllocRegion(int32_t region_id)
+{
+	alloc_region_id = region_id;
+	return HSAKMT_STATUS_SUCCESS;
+}
+
+int32_t HSAKMTAPI hsaKmtGetAllocRegion(void)
+{
+	return alloc_region_id;
+}
+
 HSAKMT_STATUS HSAKMTAPI hsaKmtAllocMemory(HSAuint32 PreferredNode,
 					  HSAuint64 SizeInBytes,
 					  HsaMemFlags MemFlags,

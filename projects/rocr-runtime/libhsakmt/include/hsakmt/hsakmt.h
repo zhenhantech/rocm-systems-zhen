@@ -506,6 +506,16 @@ hsaKmtAllocMemoryAlign(
     void**          MemoryAddress           //IN/OUT (page-aligned)
     );
 
+/* Thread-local VRAM region for the next hsaKmtAllocMemory on this thread.
+ * region_id < 0 clears it. The value is not an allocation flag. */
+HSAKMT_STATUS
+HSAKMTAPI
+hsaKmtSetAllocRegion(int32_t region_id);
+
+int32_t
+HSAKMTAPI
+hsaKmtGetAllocRegion(void);
+
 /**
   Frees a memory buffer
 */

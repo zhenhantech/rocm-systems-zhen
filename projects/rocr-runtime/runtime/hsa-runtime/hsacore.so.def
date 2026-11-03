@@ -196,6 +196,7 @@ global:
 	hsa_amd_agents_allow_access;
 	hsa_amd_memory_pool_get_info;
 	hsa_amd_memory_pool_allocate;
+	hsa_amd_memory_set_locality_domain;
 	hsa_amd_memory_pool_free;
 	hsa_amd_memory_pool_can_migrate;
 	hsa_amd_memory_migrate;

@@ -2125,7 +2125,24 @@ static vm_object_t *fmm_allocate_memory_object(HsaKFDContext *ctx,
 	do {
 		args.size = size;
 
-		if (hsakmt_ioctl(ctx->fd, AMDKFD_IOC_ALLOC_MEMORY_OF_GPU, &args))
+		if (hsaKmtGetAllocRegion() >= 0 &&
+		    (args.flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM)) {
+			struct kfd_ioctl_alloc_memory_of_gpu_region_args ext;
+
+			memset(&ext, 0, sizeof(ext));
+			ext.va_addr = args.va_addr;
+			ext.size = args.size;
+			ext.mmap_offset = args.mmap_offset;
+			ext.gpu_id = args.gpu_id;
+			ext.flags = args.flags | KFD_IOC_ALLOC_MEM_FLAGS_REGION;
+			ext.region_id = hsaKmtGetAllocRegion();
+			if (hsakmt_ioctl(ctx->fd, AMDKFD_IOWR(0x16,
+					 struct kfd_ioctl_alloc_memory_of_gpu_region_args),
+					 &ext))
+				goto err_hsakmt_ioctl_failed;
+			args.handle = ext.handle;
+			args.mmap_offset = ext.mmap_offset;
+		} else if (hsakmt_ioctl(ctx->fd, AMDKFD_IOC_ALLOC_MEMORY_OF_GPU, &args))
 			goto err_hsakmt_ioctl_failed;
 
 		/* Allocate object */
