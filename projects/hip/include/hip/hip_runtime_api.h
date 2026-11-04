@@ -2554,6 +2554,17 @@ hipError_t hipGetDeviceCount(int* count);
  * @returns #hipSuccess, #hipErrorInvalidDevice, #hipErrorInvalidValue
  */
 hipError_t hipDeviceGetAttribute(int* pi, hipDeviceAttribute_t attr, int deviceId);
+
+/**
+ * @brief Query one device memory locality domain.
+ *
+ * Domain IDs are in [0, hipDeviceAttributeLocalityDomainCount). The returned
+ * XCC mask and VRAM range come from KFD topology.
+ */
+hipError_t hipExtGetLocalityDomainProperties(
+    int deviceId, unsigned int localityDomainId,
+    hipLocalityDomainProperties* properties);
+
 /**
  * @brief Blocks until remote writes are visible to the specified scope
  *

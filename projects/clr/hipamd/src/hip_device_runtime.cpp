@@ -9,30 +9,74 @@
 #include "hip_internal.hpp"
 #include "hip_platform.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <cstdio>
 #include <fstream>
 #include <string>
 
 namespace hip {
 
-int ihipLocalityDomainCount(int device) {
-  if (device < 0 || static_cast<size_t>(device) >= g_devices.size()) {
-    return 1;
+bool ihipGetLocalityTopology(int device, LocalityTopology* topology) {
+  if (topology == nullptr || device < 0 || static_cast<size_t>(device) >= g_devices.size()) {
+    return false;
   }
+  *topology = {};
   const auto& info = g_devices[device]->devices()[0]->info();
-  char bdf[32];
-  snprintf(bdf, sizeof(bdf), "%04x:%02x:%02x.%x", info.pciDomainID,
-           info.deviceTopology_.pcie.bus, info.deviceTopology_.pcie.device,
-           info.deviceTopology_.pcie.function);
-  std::ifstream in(std::string("/sys/bus/pci/devices/") + bdf + "/current_memory_partition");
-  std::string mode;
-  if (!(in >> mode)) {
-    return 1;
+  const uint32_t expectedLocation =
+      (info.deviceTopology_.pcie.bus << 8) | (info.deviceTopology_.pcie.device << 3) |
+      info.deviceTopology_.pcie.function;
+
+  for (uint32_t node = 0; node < 256; ++node) {
+    std::ifstream in("/sys/devices/virtual/kfd/kfd/topology/nodes/" + std::to_string(node) +
+                     "/properties");
+    if (!in) continue;
+
+    uint64_t domain = UINT64_MAX;
+    uint64_t location = UINT64_MAX;
+    LocalityTopology candidate{};
+    std::string name;
+    uint64_t value;
+    while (in >> name >> value) {
+      if (name == "domain") {
+        domain = value;
+      } else if (name == "location_id") {
+        location = value;
+      } else if (name == "locality_domain_count") {
+        candidate.count =
+            static_cast<uint32_t>(std::min<uint64_t>(value, kMaxLocalityDomains));
+      } else {
+        unsigned int localityId = 0;
+        char localityField[32] = {};
+        if (std::sscanf(name.c_str(), "locality_domain%u_%31s", &localityId, localityField) == 2 &&
+            localityId < kMaxLocalityDomains) {
+          if (std::strcmp(localityField, "start") == 0) {
+            candidate.start[localityId] = value;
+          } else if (std::strcmp(localityField, "end") == 0) {
+            candidate.end[localityId] = value;
+          } else if (std::strcmp(localityField, "xcc_mask") == 0) {
+            candidate.xccMask[localityId] = value;
+          }
+        }
+      }
+    }
+    if (domain == info.pciDomainID && (location & 0xffffu) == expectedLocation &&
+        candidate.count > 0) {
+      *topology = candidate;
+      return true;
+    }
   }
-  if (mode == "NPS2") return 2;
-  if (mode == "NPS4") return 4;
-  if (mode == "NPS8") return 8;
-  return 1;
+
+  topology->count = 1;
+  const uint32_t numXcc = static_cast<uint32_t>(info.numberOfXccs_);
+  topology->xccMask[0] = numXcc >= 64 ? UINT64_MAX : ((uint64_t{1} << numXcc) - 1);
+  return false;
+}
+
+int ihipLocalityDomainCount(int device) {
+  LocalityTopology topology;
+  ihipGetLocalityTopology(device, &topology);
+  return static_cast<int>(topology.count);
 }
 
 hipError_t hipGetDevicePropertiesR0000(hipDeviceProp_tR0000* prop, int device);
@@ -997,3 +1041,23 @@ hipError_t hipSetValidDevices(int* device_arr, int len) {
   HIP_RETURN(hipSuccess);
 }
 }  // namespace hip
+
+extern "C" __attribute__((visibility("default"))) hipError_t
+hipExtGetLocalityDomainProperties(int deviceId, unsigned int localityDomainId,
+                                  hipLocalityDomainProperties* properties) {
+  if (properties == nullptr) return hipErrorInvalidValue;
+  if (deviceId < 0 || static_cast<size_t>(deviceId) >= hip::g_devices.size()) {
+    return hipErrorInvalidDevice;
+  }
+
+  hip::LocalityTopology topology;
+  hip::ihipGetLocalityTopology(deviceId, &topology);
+  if (localityDomainId >= topology.count) return hipErrorInvalidValue;
+
+  *properties = {};
+  properties->id = localityDomainId;
+  properties->xccMask = topology.xccMask[localityDomainId];
+  properties->vramStart = topology.start[localityDomainId];
+  properties->vramEnd = topology.end[localityDomainId];
+  return hipSuccess;
+}

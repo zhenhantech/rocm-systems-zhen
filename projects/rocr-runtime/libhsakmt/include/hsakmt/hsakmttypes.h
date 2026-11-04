@@ -274,6 +274,7 @@ typedef union
 //
 
 #define HSA_PUBLIC_NAME_SIZE        64   // Marketing name string size
+#define HSA_LOCALITY_DOMAIN_MAX     8
 
 typedef struct _HsaNodeProperties
 {
@@ -365,6 +366,14 @@ typedef struct _HsaNodeProperties
 
     HSAuint32       NativeSDMASupported;   // 0 - not supported, 1 - device provides the native SDMA user queue
     HSAuint32       NativeSDMAEpilogueBytes; // Per-doorbell epilogue size in the native SDMA user queue
+
+    // Memory locality topology exported by KFD. Address ranges are [start,
+    // end) byte offsets in local VRAM. XCC masks use physical XCC IDs.
+    HSAuint32       NumLocalityDomains;
+    HSAuint32       ReservedLocality;
+    HSAuint64       LocalityDomainStart[HSA_LOCALITY_DOMAIN_MAX];
+    HSAuint64       LocalityDomainEnd[HSA_LOCALITY_DOMAIN_MAX];
+    HSAuint64       LocalityDomainXccMask[HSA_LOCALITY_DOMAIN_MAX];
 } HsaNodeProperties;
 
 

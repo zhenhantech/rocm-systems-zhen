@@ -24,6 +24,7 @@ global:
     hipDeviceEnablePeerAccess;
     hipDeviceGet;
     hipDeviceGetAttribute;
+    hipExtGetLocalityDomainProperties;
     hipDeviceGetByPCIBusId;
     hipDeviceGetCacheConfig;
     hipDeviceGetStreamPriorityRange;

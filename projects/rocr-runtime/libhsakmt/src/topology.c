@@ -1261,10 +1261,28 @@ static HSAKMT_STATUS topology_sysfs_get_node_props(HsaKFDContext *ctx,
 			props->CtlStackSize = prop_val;
 		else if (strcmp(prop_name, "num_xcc") == 0)
 			props->NumXcc = prop_val;
+		else if (strcmp(prop_name, "locality_domain_count") == 0)
+			props->NumLocalityDomains =
+				(uint32_t)MIN(prop_val, HSA_LOCALITY_DOMAIN_MAX);
 		else if (strcmp(prop_name, "family_id") == 0)
 			props->FamilyID = prop_val;
 		else if (strcmp(prop_name, "gfx_target_version") == 0)
 			gfxv = (uint32_t)prop_val;
+		else {
+			unsigned int locality_id;
+			char locality_field[32];
+
+			if (sscanf(prop_name, "locality_domain%u_%31s",
+				   &locality_id, locality_field) == 2 &&
+			    locality_id < HSA_LOCALITY_DOMAIN_MAX) {
+				if (strcmp(locality_field, "start") == 0)
+					props->LocalityDomainStart[locality_id] = prop_val;
+				else if (strcmp(locality_field, "end") == 0)
+					props->LocalityDomainEnd[locality_id] = prop_val;
+				else if (strcmp(locality_field, "xcc_mask") == 0)
+					props->LocalityDomainXccMask[locality_id] = prop_val;
+			}
+		}
 	}
 
 	if (!ctx->hsakmt_is_svm_api_supported)

@@ -465,6 +465,20 @@ typedef struct hipMemLocation {
 } hipMemLocation;
 
 /**
+ * Describes one device-local memory locality domain.
+ *
+ * @p xccMask uses physical XCC IDs. @p vramStart and @p vramEnd are byte
+ * offsets in local VRAM and form a half-open range [start, end).
+ */
+typedef struct hipLocalityDomainProperties {
+  unsigned int id;
+  unsigned int reserved;
+  uint64_t xccMask;
+  uint64_t vramStart;
+  uint64_t vramEnd;
+} hipLocalityDomainProperties;
+
+/**
  * Flags to specify for copies within a batch. Used with hipMemcpyBatchAsync
  */
 typedef enum hipMemcpyFlags {

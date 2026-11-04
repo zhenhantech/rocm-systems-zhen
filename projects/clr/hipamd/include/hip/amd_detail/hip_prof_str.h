@@ -512,7 +512,8 @@ enum hip_api_id_t {
   HIP_API_ID_hipKernelSetAttributeForDevice = 490,
   HIP_API_ID_hipKernelSetCacheConfig = 491,
   HIP_API_ID_hipExtMemcpyBatchAsync = 492,
-  HIP_API_ID_LAST = 492,
+  HIP_API_ID_hipExtGetLocalityDomainProperties = 493,
+  HIP_API_ID_LAST = 493,
 
 
   HIP_API_ID_hipBindTexture = HIP_API_ID_NONE,
@@ -650,6 +651,7 @@ static inline const char* hip_api_name(const uint32_t id) {
     case HIP_API_ID_hipExtEnableLogging: return "hipExtEnableLogging";
     case HIP_API_ID_hipExtGetLastError: return "hipExtGetLastError";
     case HIP_API_ID_hipExtGetLinkTypeAndHopCount: return "hipExtGetLinkTypeAndHopCount";
+    case HIP_API_ID_hipExtGetLocalityDomainProperties: return "hipExtGetLocalityDomainProperties";
     case HIP_API_ID_hipExtLaunchKernel: return "hipExtLaunchKernel";
     case HIP_API_ID_hipExtLaunchMultiKernelMultiDevice: return "hipExtLaunchMultiKernelMultiDevice";
     case HIP_API_ID_hipExtMallocWithFlags: return "hipExtMallocWithFlags";
@@ -1136,6 +1138,7 @@ static inline uint32_t hipApiIdByName(const char* name) {
   if (strcmp("hipExtEnableLogging", name) == 0) return HIP_API_ID_hipExtEnableLogging;
   if (strcmp("hipExtGetLastError", name) == 0) return HIP_API_ID_hipExtGetLastError;
   if (strcmp("hipExtGetLinkTypeAndHopCount", name) == 0) return HIP_API_ID_hipExtGetLinkTypeAndHopCount;
+  if (strcmp("hipExtGetLocalityDomainProperties", name) == 0) return HIP_API_ID_hipExtGetLocalityDomainProperties;
   if (strcmp("hipExtLaunchKernel", name) == 0) return HIP_API_ID_hipExtLaunchKernel;
   if (strcmp("hipExtLaunchMultiKernelMultiDevice", name) == 0) return HIP_API_ID_hipExtLaunchMultiKernelMultiDevice;
   if (strcmp("hipExtMallocWithFlags", name) == 0) return HIP_API_ID_hipExtMallocWithFlags;
@@ -2045,6 +2048,12 @@ typedef struct hip_api_data_s {
       unsigned int* hopcount;
       unsigned int hopcount__val;
     } hipExtGetLinkTypeAndHopCount;
+    struct {
+      int deviceId;
+      unsigned int localityDomainId;
+      hipLocalityDomainProperties* properties;
+      hipLocalityDomainProperties properties__val;
+    } hipExtGetLocalityDomainProperties;
     struct {
       const void* function_address;
       dim3 numBlocks;
@@ -5021,6 +5030,9 @@ typedef struct hip_api_data_s {
   cb_data.args.hipExtGetLinkTypeAndHopCount.linktype = (unsigned int*)linktype; \
   cb_data.args.hipExtGetLinkTypeAndHopCount.hopcount = (unsigned int*)hopcount; \
 };
+// hipExtGetLocalityDomainProperties[('int', 'deviceId'), ('unsigned int', 'localityDomainId'), ('hipLocalityDomainProperties*', 'properties')]
+#define INIT_hipExtGetLocalityDomainProperties_CB_ARGS_DATA(cb_data) { \
+};
 // hipExtLaunchKernel[('const void*', 'function_address'), ('dim3', 'numBlocks'), ('dim3', 'dimBlocks'), ('void**', 'args'), ('size_t', 'sharedMemBytes'), ('hipStream_t', 'stream'), ('hipEvent_t', 'startEvent'), ('hipEvent_t', 'stopEvent'), ('int', 'flags')]
 #define INIT_hipExtLaunchKernel_CB_ARGS_DATA(cb_data) { \
   cb_data.args.hipExtLaunchKernel.function_address = (const void*)hostFunction; \
@@ -7915,6 +7927,10 @@ static inline void hipApiArgsInit(hip_api_id_t id, hip_api_data_t* data) {
       if (data->args.hipExtGetLinkTypeAndHopCount.linktype) data->args.hipExtGetLinkTypeAndHopCount.linktype__val = *(data->args.hipExtGetLinkTypeAndHopCount.linktype);
       if (data->args.hipExtGetLinkTypeAndHopCount.hopcount) data->args.hipExtGetLinkTypeAndHopCount.hopcount__val = *(data->args.hipExtGetLinkTypeAndHopCount.hopcount);
       break;
+// hipExtGetLocalityDomainProperties[('int', 'deviceId'), ('unsigned int', 'localityDomainId'), ('hipLocalityDomainProperties*', 'properties')]
+    case HIP_API_ID_hipExtGetLocalityDomainProperties:
+      if (data->args.hipExtGetLocalityDomainProperties.properties) data->args.hipExtGetLocalityDomainProperties.properties__val = *(data->args.hipExtGetLocalityDomainProperties.properties);
+      break;
 // hipExtLaunchKernel[('const void*', 'function_address'), ('dim3', 'numBlocks'), ('dim3', 'dimBlocks'), ('void**', 'args'), ('size_t', 'sharedMemBytes'), ('hipStream_t', 'stream'), ('hipEvent_t', 'startEvent'), ('hipEvent_t', 'stopEvent'), ('int', 'flags')]
     case HIP_API_ID_hipExtLaunchKernel:
       if (data->args.hipExtLaunchKernel.args) data->args.hipExtLaunchKernel.args__val = *(data->args.hipExtLaunchKernel.args);
@@ -10182,6 +10198,14 @@ static inline const char* hipApiString(hip_api_id_t id, const hip_api_data_t* da
       else { oss << ", linktype="; roctracer::hip_support::detail::operator<<(oss, data->args.hipExtGetLinkTypeAndHopCount.linktype__val); }
       if (data->args.hipExtGetLinkTypeAndHopCount.hopcount == NULL) oss << ", hopcount=NULL";
       else { oss << ", hopcount="; roctracer::hip_support::detail::operator<<(oss, data->args.hipExtGetLinkTypeAndHopCount.hopcount__val); }
+      oss << ")";
+    break;
+    case HIP_API_ID_hipExtGetLocalityDomainProperties:
+      oss << "hipExtGetLocalityDomainProperties(";
+      oss << "deviceId="; roctracer::hip_support::detail::operator<<(oss, data->args.hipExtGetLocalityDomainProperties.deviceId);
+      oss << ", localityDomainId="; roctracer::hip_support::detail::operator<<(oss, data->args.hipExtGetLocalityDomainProperties.localityDomainId);
+      if (data->args.hipExtGetLocalityDomainProperties.properties == NULL) oss << ", properties=NULL";
+      else { oss << ", properties="; roctracer::hip_support::detail::operator<<(oss, data->args.hipExtGetLocalityDomainProperties.properties__val); }
       oss << ")";
     break;
     case HIP_API_ID_hipExtLaunchKernel:

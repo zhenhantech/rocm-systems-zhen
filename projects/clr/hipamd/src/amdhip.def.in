@@ -24,6 +24,7 @@ hipDeviceDisablePeerAccess
 hipDeviceEnablePeerAccess
 hipDeviceGet
 hipDeviceGetAttribute
+hipExtGetLocalityDomainProperties
 hipDeviceGetByPCIBusId
 hipDeviceGetCacheConfig
 hipDeviceGetStreamPriorityRange

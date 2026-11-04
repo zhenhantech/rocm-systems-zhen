@@ -69,8 +69,17 @@ extern std::once_flag g_ihipInitialized;
     uint32_t startCU;
   };
 
-  // How many locality domains the device currently exposes. NPS1 and an
-  // unreadable partition file report 1, which is the whole device.
+  static constexpr uint32_t kMaxLocalityDomains = 8;
+  struct LocalityTopology {
+    uint32_t count = 1;
+    uint64_t start[kMaxLocalityDomains] = {};
+    uint64_t end[kMaxLocalityDomains] = {};
+    uint64_t xccMask[kMaxLocalityDomains] = {};
+  };
+
+  // Read the authoritative locality topology exported by KFD. Old kernels
+  // fall back to one whole-device domain.
+  bool ihipGetLocalityTopology(int device, LocalityTopology* topology);
   int ihipLocalityDomainCount(int device);
 
   // Puts VRAM allocated on this thread into region_id until the scope ends.
